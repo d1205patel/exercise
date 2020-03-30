@@ -216,7 +216,7 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
         } else {
             newCap = DEFAULT_CAP;
         }
-        float ft = (float)oldCap*loadFactor;
+        float ft = (float)newCap*loadFactor;
         threshold = ft >= (float)Integer.MAX_VALUE ? Integer.MAX_VALUE : (int)ft;
 
         Node<K,V>[] newTable = (Node<K,V>[])new Node[newCap];
