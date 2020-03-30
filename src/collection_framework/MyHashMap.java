@@ -211,7 +211,7 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
             } else {
                 newCap = oldCap<<1;
             }
-        } else if(newThr>0) {
+        } else if(threshold>0) {
             newCap = threshold;
         } else {
             newCap = DEFAULT_CAP;
