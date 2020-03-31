@@ -34,12 +34,11 @@ public class SimpleGrep {
             while ((n = bufferedReader.read(text, 0, ARRAY_SIZE)) != -1) {
                 int i = 0;
                 while (i < n) {
-                    if (text[i] == '\n') {
-                        lines++;
-                    }
                     if (pattern.charAt(j) == text[i]) {
                         j++;
-                        i++;
+                        if(text[i++]=='\n') {
+                            lines++;
+                        }
                     }
                     if (j == m) {
                         if (lastFoundLine != lines) {
@@ -50,8 +49,9 @@ public class SimpleGrep {
                     } else if (i < n && pattern.charAt(j) != text[i]) {
                         if (j != 0)
                             j = lps[j - 1];
-                        else
-                            i++;
+                        else if(text[i++]=='\n') {
+                            lines++;
+                        }
                     }
                 }
             }
