@@ -9,7 +9,7 @@ public class SimpleGrep {
 
     public static void main(String[] args) {
         if(args.length != 2) {
-            System.out.println("Usage : SimpleGrep <filename> pattern");
+            System.out.println("Usage : SimpleGrep pattern <filename>");
             System.exit(0);
         }
 
