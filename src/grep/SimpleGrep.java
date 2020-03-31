@@ -1,9 +1,6 @@
 package grep;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 
 public class SimpleGrep {
 
@@ -17,59 +14,48 @@ public class SimpleGrep {
         }
 
         String fileName = args[1];
-        BufferedReader bufferedReader = null;
 
-        try {
-            bufferedReader = new BufferedReader(new FileReader(fileName),BUFFER_SIZE);
-
-            int matchedLineNumber = findPattern(bufferedReader,args[0]);
-
-            if(matchedLineNumber!=-1) {
-                System.out.println(matchedLineNumber);
-            }
-
+        try(BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName),BUFFER_SIZE)) {
+            findPattern(bufferedReader,args[0]);
         } catch (FileNotFoundException e) {
             System.out.println("Error: " + fileName + " : No such file");
         } catch (IOException e) {
-            System.out.println("Error while reading file: " + fileName);
-        } finally {
-            try {
-                if(bufferedReader!=null) {
-                    bufferedReader.close();
-                }
-            } catch(IOException e) {
-                System.out.println("Error while closing a file");
-            }
+            System.out.println("Error occurred !");
         }
     }
 
-    private static int findPattern(BufferedReader bufferedReader,String pattern) throws IOException {
+    private static void findPattern(BufferedReader bufferedReader,String pattern) throws IOException {
         int[] lps = computeLPS(pattern);
         int numLinesInPattern = noOfLines(pattern);
         int m = pattern.length() , j = 0 ,lines = 1 ,n;
         char[] text = new char[ARRAY_SIZE];
-
-        while((n=bufferedReader.read(text,0,ARRAY_SIZE))!=-1) {
-            int i = 0;
-            while (i < n) {
-                if (text[i] == '\n') {
-                    lines++;
-                }
-                if (pattern.charAt(j) == text[i]) {
-                    j++;
-                    i++;
-                }
-                if (j == m) {
-                    return lines-numLinesInPattern;
-                } else if (i < n && pattern.charAt(j) != text[i]) {
-                    if (j != 0)
-                        j = lps[j - 1];
-                    else
+        int lastFoundLine = -1;
+        try (BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(System.out))) {
+            while ((n = bufferedReader.read(text, 0, ARRAY_SIZE)) != -1) {
+                int i = 0;
+                while (i < n) {
+                    if (text[i] == '\n') {
+                        lines++;
+                    }
+                    if (pattern.charAt(j) == text[i]) {
+                        j++;
                         i++;
+                    }
+                    if (j == m) {
+                        if (lastFoundLine != lines) {
+                            bufferedWriter.write((lines - numLinesInPattern) + "\n");
+                            lastFoundLine = lines;
+                        }
+                        j = lps[j - 1];
+                    } else if (i < n && pattern.charAt(j) != text[i]) {
+                        if (j != 0)
+                            j = lps[j - 1];
+                        else
+                            i++;
+                    }
                 }
             }
         }
-        return -1;
     }
 
     private static int[] computeLPS(String pattern) {
