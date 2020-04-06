@@ -264,7 +264,7 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
         n |= n >>> 4;
         n |= n >>> 8;
         n |= n >>> 16;
-        return (n < 0) ? 1 : (n >= MAX_CAP) ? MAX_CAP : n + 1;
+        return n + 1;
     }
 
     private static int hash(Object key) {
