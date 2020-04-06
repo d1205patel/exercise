@@ -1,11 +1,6 @@
 package grep;
 
 import java.io.*;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.*;
 
 public class Grep {
@@ -16,7 +11,6 @@ public class Grep {
 
     private static String pattern;
     private static int[] lps;
-    private static int noOfLinesInPattern;
     private static int m;   //m is pattern length
 
     public static void main(String[] args) throws InterruptedException {
@@ -34,35 +28,33 @@ public class Grep {
         }
 
         pattern = args[0];
-        lps = computeLPS(pattern);
-        noOfLinesInPattern = noOfLines(pattern);
         m = pattern.length();
+        lps = computeLPS(pattern);
 
-        try(BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(System.out))) {
             if(!file.isDirectory()) {
-                findPattern(file.getPath(),bufferedWriter);
+                findPattern(file.getPath());
             } else {
                 ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
-                Files.walkFileTree(file.toPath(), new SimpleFileVisitor<Path>() {
-                    @Override
-                    public FileVisitResult visitFile(Path path, BasicFileAttributes attr) {
-                        executorService.execute(() ->findPattern(path.toString(),bufferedWriter));
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
+                processFile(file,executorService);
                 executorService.shutdown();
                 executorService.awaitTermination(1,TimeUnit.MINUTES);
-                bufferedWriter.flush();
             }
-        } catch (IOException e) {
-            System.out.println("Error occurred !");
+    }
+
+    private static void processFile(File file,ExecutorService executorService) {
+        File[] files = file.listFiles();
+        for(File f:files) {
+            if (f.isDirectory()) {
+                processFile(f,executorService);
+            } else {
+                executorService.execute(() ->findPattern(f.getPath()));
+            }
         }
     }
 
-    private static void findPattern(String fileName,BufferedWriter bufferedWriter) {
-        int j = 0 ,lines = 1 ,n;
+    private static void findPattern(String fileName) {
+        int j = 0 ,lines = 1 ,n ,lastFoundLine=-1;
         char[] text = new char[ARRAY_SIZE];
-
         try(BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName),BUFFER_SIZE)) {
             while ((n = bufferedReader.read(text, 0, ARRAY_SIZE)) != -1) {
                 int i = 0;
@@ -75,7 +67,10 @@ public class Grep {
                         i++;
                     }
                     if (j == m) {
-                        bufferedWriter.write( fileName + " : " + (lines - noOfLinesInPattern) + "\n");
+                        if(lastFoundLine!=lines) {
+                            System.out.print(fileName + " : " + lines + "\n");
+                            lastFoundLine = lines;
+                        }
                         j = lps[j-1];
                     } else if (i < n && pattern.charAt(j) != text[i]) {
                         if (j != 0)
@@ -85,13 +80,16 @@ public class Grep {
                     }
                 }
             }
-        } catch (IOException e) {
+        } catch (FileNotFoundException e) {
+            System.out.println(fileName + "File Not found !");
+        }
+        catch (IOException e) {
             System.out.println("Error occurred while processing file" + fileName);
         }
     }
 
     private static int[] computeLPS(String pattern) {
-        int m = pattern.length(), len = 0 , i = 1;
+        int len = 0 , i = 1;
         int[] lps = new int[m];
         lps[0] = 0;
         while (i < m) {
@@ -104,18 +102,5 @@ public class Grep {
             }
         }
         return lps;
-    }
-
-    private static int noOfLines(String s) {
-        if(s==null) {
-            return 0;
-        }
-        int numLines = 0;
-        for(int i=0;i<s.length();i++) {
-            if(s.charAt(i)=='\n') {
-                numLines++;
-            }
-        }
-        return numLines;
     }
 }
