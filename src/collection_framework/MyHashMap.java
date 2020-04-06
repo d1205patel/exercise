@@ -40,24 +40,24 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
 
     @Override
     public V put(K key,V value) {
-        return putVal(hash(key),key,value);
+        return putVal(key,value);
     }
 
     @Override
     public boolean remove(Object key, Object value) {
-        return Objects.equals(removeNode(hash(key),key,value,true),value);
+        return Objects.equals(removeNode(key,value,true),value);
     }
 
     @Override
     public V remove(Object key) {
-        return removeNode(hash(key),key,null,false);
+        return removeNode(key,null,false);
     }
 
     @Override
     public boolean replace(K key, V oldValue, V newValue) {
         V foundValue = get(key);
         if(Objects.equals(oldValue,foundValue)) {
-            putVal(hash(key),key,newValue);
+            putVal(key,newValue);
             return true;
         }
         return false;
@@ -65,7 +65,7 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
 
     @Override
     public V replace(K key, V value) {
-        return putVal(hash(key),key,value);
+        return putVal(key,value);
     }
 
     @Override
@@ -78,13 +78,13 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
 
     @Override
     public V get(Object key) {
-        Node<K,V> node = getNode(hash(key),key);
+        Node<K,V> node = getNode(key);
         return node==null ? null : node.value;
     }
 
     @Override
     public boolean containsKey(Object key) {
-        return getNode(hash(key),key)!=null;
+        return getNode(key)!=null;
     }
 
     @Override
@@ -120,11 +120,12 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
 
     //<--------------------------------- Private Helper methods --------------------------------------->//
 
-    private V putVal(int hash,K key,V value) {
+    private V putVal(K key,V value) {
         if(table == null || table.length == 0) {
             resize();
         }
         int n = table.length;
+        int hash = hash(key);
         int index = hash & (n-1);
         if(table[index]==null) {
             table[index] = new Node(hash,key,value,null);
@@ -155,8 +156,9 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
         return null;
     }
 
-    private V removeNode(int hash,Object key,Object value,boolean matchValue) {
+    private V removeNode(Object key,Object value,boolean matchValue) {
         if(table!=null && table.length>0) {
+            int hash = hash(key);
             int index = hash & (table.length-1);
             if(table[index]!=null) {
                 Node<K,V> prevNode = table[index],foundNode=null;
@@ -185,10 +187,10 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
         return null;
     }
 
-    private Node<K,V> getNode(int hash,Object key) {
+    private Node<K,V> getNode(Object key) {
         if(table!=null && table.length!=0) {
             int h = hash(key);
-            int index = hash(key) & (table.length -1);
+            int index = h & (table.length -1);
             if(table[index]!=null) {
                 Node<K,V> node = table[index];
                 while(node != null) {
@@ -266,10 +268,10 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
     }
 
     private static int hash(Object key) {
-        return key==null ? 0 : (key.hashCode() ^ key.hashCode() >>> 16);
+        return key==null ? 0 : key.hashCode();
     }
 
-    private static class Node<K,V> {
+    private class Node<K,V> {
         final int hash;
         final K key;
         V value;
