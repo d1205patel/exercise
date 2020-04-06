@@ -206,7 +206,7 @@ public class MyHashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>{
 
     private void resize() {
         int oldCap = table==null ? 0: table.length;
-        int newCap = 0,newThr =0;
+        int newCap = 0;
         if(oldCap>0) {
             if(oldCap==MAX_CAP) {
                 return;
