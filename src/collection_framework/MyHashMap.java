@@ -60,7 +60,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
     @Override
     public boolean remove(Object key, Object value) {
         Node<K,V> removedNode = removeNode(key,value,true);
-        return removedNode!=null && Objects.equals(removedNode.value,value);
+        return removedNode!=null;
     }
 
     @Override
@@ -134,8 +134,8 @@ public class MyHashMap<K,V> implements Map<K,V>{
         }
         if(o instanceof Map<?,?>) {
             Map<?,?> map = (Map<?,?>)o;
-            Set<Entry<K,V>>  entrySet = entrySet();
-            for(Entry<?,?> entry: ((Map<?, ?>) o).entrySet()) {
+            Set<Entry<K,V>> entrySet = entrySet();
+            for(Entry<?,?> entry: map.entrySet()) {
                 if(!entrySet.contains(entry)) {
                     return false;
                 }
@@ -179,9 +179,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
         public void clear() {
             MyHashMap.this.clear();
         }
-        public boolean contains(Object o) {
-            throw new UnsupportedOperationException();
-        }
+        public abstract boolean contains(Object o);
         public boolean containsAll(Collection<?> c) {
             for(Object o: c) {
                 if(!contains(o)) {
@@ -190,9 +188,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
             }
             return true;
         }
-        public boolean remove(Object o) {
-            throw new UnsupportedOperationException();
-        }
+        public abstract boolean remove(Object o);
         public boolean removeAll(Collection<?> c) {
             boolean changed = false;
             for(Object o:c) {
@@ -202,15 +198,48 @@ public class MyHashMap<K,V> implements Map<K,V>{
         }
         public boolean retainAll(Collection<?> c) {
             boolean changed = false;
-            for(Object o: c) {
-                if(!contains(o)) {
-                    changed |= remove(o);
+            Iterator<?> it = iterator();
+            while(it.hasNext()) {
+                boolean present = false;
+                for(Object o : c) {
+                    if(o.equals(it.next())) {
+                        present = true;
+                        break;
+                    }
+                }
+                if(!present) {
+                    changed = true;
+                    it.remove();
                 }
             }
             return changed;
         }
+        public abstract Iterator<?> iterator();
+        public Object[] toArray() {
+            Iterator<?> it = iterator();
+            Object[] array = new Object[size];
+            int i = 0;
+            while(it.hasNext()) {
+                array[i++] = it.next();
+            }
+            return array;
+        }
+        @SuppressWarnings("unchecked")
+        public <T> T[] toArray(T[] a) {
+            if(a.length < size) {
+                return (T[])toArray();
+            }
+            int i = 0;
+            Iterator<?> it = iterator();
+            while(it.hasNext()) {
+                a[i++] = (T)it.next();
+            }
+            if(i < size) {
+                a[i] = null;
+            }
+            return a;
+        }
     }
-
 
     private class EntrySet extends CommonHashMapOperation implements Set<Entry<K,V>> {
 
@@ -228,32 +257,6 @@ public class MyHashMap<K,V> implements Map<K,V>{
         @Override
         public Iterator<Entry<K, V>> iterator() {
             return new EntrySetItr();
-        }
-
-        @Override
-        public Object[] toArray() {
-            Object[] array = new Object[size];
-            int i = 0;
-            for(Entry<K,V> entry: entrySet()) {
-                array[i++] = entry;
-            }
-            return array;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public <T> T[] toArray(T[] a) {
-            if(a.length < size) {
-                return (T[])toArray();
-            }
-            int i = 0;
-            for(Entry<K,V> entry: entrySet()) {
-                a[i++] = (T)entry;
-            }
-            if(i < size) {
-                a[i] = null;
-            }
-            return a;
         }
 
         @Override
@@ -308,32 +311,6 @@ public class MyHashMap<K,V> implements Map<K,V>{
         }
 
         @Override
-        public Object[] toArray() {
-            Object[] array = new Object[size];
-            int i = 0;
-            for(Entry<K,V> entry: entrySet()) {
-                array[i++] = entry.getKey();
-            }
-            return array;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public <T> T[] toArray(T[] a) {
-            if(a.length < size) {
-                return (T[])toArray();
-            }
-            int i = 0;
-            for(Entry<K,V> entry: entrySet()) {
-                a[i++] = (T)entry.getKey();
-            }
-            if(i < size) {
-                a[i] = null;
-            }
-            return a;
-        }
-
-        @Override
         public boolean add(K k) {
             throw new UnsupportedOperationException();
         }
@@ -361,32 +338,6 @@ public class MyHashMap<K,V> implements Map<K,V>{
         @Override
         public Iterator<V> iterator() {
             return new ValueItr();
-        }
-
-        @Override
-        public Object[] toArray() {
-            Object[] array = new Object[size];
-            int i = 0;
-            for(Entry<K,V> entry: entrySet()) {
-                array[i++] = entry.getValue();
-            }
-            return array;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public <T> T[] toArray(T[] a) {
-            if(a.length < size) {
-                return (T[])toArray();
-            }
-            int i = 0;
-            for(Entry<K,V> entry: entrySet()) {
-                a[i++] = (T)entry.getValue();
-            }
-            if(i < size) {
-                a[i] = null;
-            }
-            return a;
         }
 
         @Override
