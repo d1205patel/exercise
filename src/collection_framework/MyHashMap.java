@@ -61,7 +61,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
     public boolean remove(Object key, Object value) {
         Node<K,V> removedNode = removeNode(key,value,true);
         return removedNode!=null && Objects.equals(removedNode.value,value);
-}
+    }
 
     @Override
     public V remove(Object key) {
@@ -488,11 +488,10 @@ public class MyHashMap<K,V> implements Map<K,V>{
         }
     }
 
-    @SuppressWarnings("unchecked")
     private class KeyItr extends HashItr implements Iterator<K> {
         @Override
         public K next() {
-            return (K)nextNode().getValue();
+            return nextNode().getKey();
         }
     }
 
