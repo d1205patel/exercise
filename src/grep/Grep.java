@@ -1,7 +1,6 @@
 package grep;
 
 import java.io.*;
-import java.util.concurrent.*;
 
 public class Grep {
 
@@ -34,14 +33,13 @@ public class Grep {
             if(!file.isDirectory()) {
                 findPattern(file.getPath());
             } else {
-                ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
+                MyFixedThreadPoolExecutor executorService = new MyFixedThreadPoolExecutor(NUM_THREADS);
                 processFile(file,executorService);
                 executorService.shutdown();
-                executorService.awaitTermination(1,TimeUnit.MINUTES);
             }
     }
 
-    private static void processFile(File file,ExecutorService executorService) {
+    private static void processFile(File file, MyFixedThreadPoolExecutor executorService) {
         File[] files = file.listFiles();
         for(File f:files) {
             if (f.isDirectory()) {
