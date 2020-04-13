@@ -56,7 +56,7 @@ public class FixedThreadPool implements ExecutorService {
                     return;
                 }
                 mainLock.lock();
-                if(workerCounter.get() == 0) {
+                if(workerCounter.get() == 0 && currentState==State.SHUTDOWN) {
                     currentState = State.TERMINATED;
                     termination.signalAll();
                     mainLock.unlock();
