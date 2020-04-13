@@ -33,8 +33,8 @@ public class FixedThreadPool implements ExecutorService {
                 Worker w = new Worker(command);
                 synchronized (lock) {
                     workerSet.add(w);
-                    w.t.start();
                 }
+                w.t.start();
             } else {
                 workerCounter.decrementAndGet();
             }
