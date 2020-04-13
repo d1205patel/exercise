@@ -15,7 +15,7 @@ public class FixedThreadPool implements ExecutorService {
     private int poolSize;
 
     private AtomicInteger workerCounter = new AtomicInteger();
-    private volatile HashSet<Worker> workerSet = new HashSet<>();
+    private HashSet<Worker> workerSet = new HashSet<>();
     private BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
     private Lock mainLock = new ReentrantLock();
     private State currentState = State.RUNNING;
@@ -25,7 +25,6 @@ public class FixedThreadPool implements ExecutorService {
         poolSize = size;
     }
 
-
     @Override
     public void execute(Runnable command) {
         Objects.requireNonNull(command);
@@ -33,14 +32,13 @@ public class FixedThreadPool implements ExecutorService {
             throw new RejectedExecutionException();
         }
 
-        if(workerCounter.getAndIncrement() <= poolSize) {
+        if(workerCounter.getAndIncrement() < poolSize) {
             Worker w = new Worker(command);
             mainLock.lock();
             workerSet.add(w);
             w.t.start();
             mainLock.unlock();
         } else {
-            workerCounter.decrementAndGet();
             taskQueue.add(command);
         }
     }
@@ -50,8 +48,11 @@ public class FixedThreadPool implements ExecutorService {
         if(currentState == State.RUNNING) {
             currentState = State.SHUTDOWN;
             while(true) {
+                if(currentState != State.SHUTDOWN) {
+                    return;
+                }
                 mainLock.lock();
-                if(workerCounter.get() == 0 && currentState == State.SHUTDOWN) {
+                if(workerCounter.get() == 0) {
                     currentState = State.TERMINATED;
                     termination.signalAll();
                     mainLock.unlock();
