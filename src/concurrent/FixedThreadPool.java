@@ -67,14 +67,17 @@ public class FixedThreadPool implements ExecutorService {
     public List<Runnable> shutdownNow() {
         if(currentState == State.RUNNING || currentState == State.SHUTDOWN) {
             mainLock.lock();
-            currentState = State.SHUTDOWN_NOW;
-            stopAllWorkers();
-            List<Runnable> remainingTasks = new ArrayList<>(taskQueue.size());
-            taskQueue.drainTo(remainingTasks);
-            currentState = State.TERMINATED;
-            termination.signalAll();
+            if(currentState == State.RUNNING || currentState== State.SHUTDOWN) {
+                currentState = State.SHUTDOWN_NOW;
+                stopAllWorkers();
+                List<Runnable> remainingTasks = new ArrayList<>(taskQueue.size());
+                taskQueue.drainTo(remainingTasks);
+                currentState = State.TERMINATED;
+                termination.signalAll();
+                mainLock.unlock();
+                return remainingTasks;
+            }
             mainLock.unlock();
-            return remainingTasks;
         }
         return new ArrayList<>();
     }
@@ -84,15 +87,13 @@ public class FixedThreadPool implements ExecutorService {
         if(currentState == State.TERMINATED) {
             return true;
         }
-        else {
-            mainLock.lock();
-            try {
-                termination.await(timeout, unit);
-            } catch (InterruptedException e) {
-                //
-            } finally {
-                mainLock.unlock();
-            }
+        mainLock.lock();
+        try {
+            termination.await(timeout, unit);
+        } catch (InterruptedException e) {
+            //
+        } finally {
+            mainLock.unlock();
         }
         return false;
     }
