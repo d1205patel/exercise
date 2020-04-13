@@ -32,12 +32,16 @@ public class FixedThreadPool implements ExecutorService {
             throw new RejectedExecutionException();
         }
 
-        if(workerCounter.getAndIncrement() < poolSize) {
-            Worker w = new Worker(command);
-            mainLock.lock();
-            workerSet.add(w);
-            w.t.start();
-            mainLock.unlock();
+        if(workerCounter.get() < poolSize) {
+            if (workerCounter.incrementAndGet() <= poolSize) {
+                Worker w = new Worker(command);
+                mainLock.lock();
+                workerSet.add(w);
+                w.t.start();
+                mainLock.unlock();
+            } else {
+                workerCounter.decrementAndGet();
+            }
         } else {
             taskQueue.add(command);
         }
@@ -198,10 +202,10 @@ public class FixedThreadPool implements ExecutorService {
             task.run();
             task = getTask();
         }
+        workerCounter.decrementAndGet();
         mainLock.lock();
         workerSet.remove(w);
         mainLock.unlock();
-        workerCounter.decrementAndGet();
     }
 
     private Runnable getTask() {
