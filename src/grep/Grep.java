@@ -1,6 +1,7 @@
 package grep;
 
 import java.io.*;
+import concurrent.FixedThreadPool;
 
 public class Grep {
 
@@ -30,18 +31,18 @@ public class Grep {
         m = pattern.length();
         lps = computeLPS(pattern);
 
-            if(!file.isDirectory()) {
-                findPattern(file.getPath());
-            } else {
-                MyFixedThreadPoolExecutor executorService = new MyFixedThreadPoolExecutor(NUM_THREADS);
-                processFile(file,executorService);
-                executorService.shutdown();
-            }
+        if(!file.isDirectory()) {
+            findPattern(file.getPath());
+        } else {
+            FixedThreadPool executorService = new FixedThreadPool(NUM_THREADS);
+            processFile(file,executorService);
+            executorService.shutdown();
+        }
     }
 
-    private static void processFile(File file, MyFixedThreadPoolExecutor executorService) {
+    private static void processFile(File file,FixedThreadPool executorService) {
         File[] files = file.listFiles();
-        if(files!=null) {
+        if(files != null) {
             for (File f : files) {
                 if (f.isDirectory()) {
                     processFile(f, executorService);
