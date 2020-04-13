@@ -12,7 +12,7 @@ public class FixedThreadPool implements ExecutorService {
     private int poolSize;
 
     private AtomicInteger workerCounter = new AtomicInteger();
-    private HashSet<Worker> workerSet = new HashSet<>();
+    private volatile HashSet<Worker> workerSet = new HashSet<>();
     private BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
     private final Object lock = new Object();
     private State currentState = State.RUNNING;
