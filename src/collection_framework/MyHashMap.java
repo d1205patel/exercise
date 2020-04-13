@@ -21,7 +21,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
 
     //<----------------------------------------- Constructors ------------------------------------------>//
 
-    MyHashMap(int cap,float loadFactor) {
+    public MyHashMap(int cap,float loadFactor) {
         if(cap<0) {
             throw new IllegalArgumentException("Illegal Capacity:" + cap);
         }
@@ -34,10 +34,10 @@ public class MyHashMap<K,V> implements Map<K,V>{
         this.loadFactor = loadFactor;
         this.threshold = tableSizeForCap(cap);
     }
-    MyHashMap(int cap) {
+    public MyHashMap(int cap) {
         this(cap,DEFAULT_LOAD_FACTOR);
     }
-    MyHashMap() {
+    public MyHashMap() {
         this.loadFactor = DEFAULT_LOAD_FACTOR;
     }
 
@@ -169,7 +169,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
 
     //<----------------------------------------- Views of HashMap----------------------------------------->//
 
-    private abstract class CommonHashMapOperation {
+    private abstract class CommonCollectionOperation {
         public int size() {
             return size;
         }
@@ -241,7 +241,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
         }
     }
 
-    private class EntrySet extends CommonHashMapOperation implements Set<Entry<K,V>> {
+    private class EntrySet extends CommonCollectionOperation implements Set<Entry<K,V>> {
 
         @Override
         public boolean contains(Object o) {
@@ -298,7 +298,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
 
     }
 
-    private class KeySet extends CommonHashMapOperation implements Set<K> {
+    private class KeySet extends CommonCollectionOperation implements Set<K> {
 
         @Override
         public boolean contains(Object o) {
@@ -328,7 +328,7 @@ public class MyHashMap<K,V> implements Map<K,V>{
 
     }
 
-    private class Values extends CommonHashMapOperation implements Collection<V> {
+    private class Values extends CommonCollectionOperation implements Collection<V> {
 
         @Override
         public boolean contains(Object o) {
@@ -383,18 +383,21 @@ public class MyHashMap<K,V> implements Map<K,V>{
 
     //<------------------------------------------- Iterators --------------------------------------------->//
 
-    private class HashItr {
-        Node<K,V> currentNode,nextNode;
+    private abstract class HashItr {
+        Node<K,V> prevNode,currentNode,nextNode;
         int expectedModCount;
-        int index;
+        int nextIndex,currIndex;
 
         HashItr() {
-            currentNode = null;
+            prevNode = currentNode = null;
             if(table!=null) {
                 int n = table.length ;
-                index = 0;
+                nextIndex = 0;
+                currIndex = -1;
                 expectedModCount = modCount;
-                while(index < n && (nextNode=table[index++])==null);
+                while(nextIndex < n && (nextNode=table[nextIndex])==null) {
+                    nextIndex++;
+                }
             }
         }
 
@@ -407,10 +410,15 @@ public class MyHashMap<K,V> implements Map<K,V>{
             if(nextNode==null) {
                 throw new NoSuchElementException();
             }
+            prevNode = currentNode;
             currentNode = nextNode;
+            currIndex = nextIndex;
             if((nextNode = nextNode.next)==null) {
                 int n = table.length;
-                while(index < n && (nextNode=table[index++])==null);
+                nextIndex++;
+                while(nextIndex < n && (nextNode=table[nextIndex])==null) {
+                    nextIndex++;
+                }
             }
             return currentNode;
         }
@@ -420,8 +428,14 @@ public class MyHashMap<K,V> implements Map<K,V>{
             if(currentNode==null) {
                 throw new IllegalStateException();
             }
-            MyHashMap.this.remove(currentNode.key);
+            if(currentNode==table[currIndex]) {
+                table[currIndex] = currentNode.next;
+            } else {
+                prevNode.next = currentNode.next;
+            }
             currentNode = null;
+            size--;
+            modCount++;
             expectedModCount = modCount;
         }
 
