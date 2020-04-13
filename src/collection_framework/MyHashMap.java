@@ -88,6 +88,8 @@ public class MyHashMap<K,V> implements Map<K,V>{
     public void clear() {
         if(table!=null) {
             Arrays.fill(table,null);
+            size = 0;
+            modCount++;
         }
     }
 
