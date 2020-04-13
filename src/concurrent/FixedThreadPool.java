@@ -223,6 +223,7 @@ public class FixedThreadPool implements ExecutorService {
         for(Worker w: workerSet) {
             w.interrupt();
         }
+        workerSet.clear();
         mainLock.unlock();
         workerCounter.getAndSet(0);
     }
