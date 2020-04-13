@@ -41,11 +41,13 @@ public class Grep {
 
     private static void processFile(File file, MyFixedThreadPoolExecutor executorService) {
         File[] files = file.listFiles();
-        for(File f:files) {
-            if (f.isDirectory()) {
-                processFile(f,executorService);
-            } else {
-                executorService.execute(() ->findPattern(f.getPath()));
+        if(files!=null) {
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    processFile(f, executorService);
+                } else {
+                    executorService.execute(() -> findPattern(f.getPath()));
+                }
             }
         }
     }
