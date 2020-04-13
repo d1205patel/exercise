@@ -3,9 +3,6 @@ package concurrent;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class FixedThreadPool implements ExecutorService {
 
@@ -17,9 +14,8 @@ public class FixedThreadPool implements ExecutorService {
     private AtomicInteger workerCounter = new AtomicInteger();
     private HashSet<Worker> workerSet = new HashSet<>();
     private BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
-    private Lock mainLock = new ReentrantLock();
+    private final Object lock = new Object();
     private State currentState = State.RUNNING;
-    private Condition termination = mainLock.newCondition();
 
     public FixedThreadPool(int size) {
         poolSize = size;
@@ -35,10 +31,10 @@ public class FixedThreadPool implements ExecutorService {
         if(workerCounter.get() < poolSize) {
             if (workerCounter.incrementAndGet() <= poolSize) {
                 Worker w = new Worker(command);
-                mainLock.lock();
-                workerSet.add(w);
-                w.t.start();
-                mainLock.unlock();
+                synchronized (lock) {
+                    workerSet.add(w);
+                    w.t.start();
+                }
             } else {
                 workerCounter.decrementAndGet();
             }
@@ -55,14 +51,13 @@ public class FixedThreadPool implements ExecutorService {
                 if(currentState != State.SHUTDOWN) {
                     return;
                 }
-                mainLock.lock();
-                if(workerCounter.get() == 0 && currentState==State.SHUTDOWN) {
-                    currentState = State.TERMINATED;
-                    termination.signalAll();
-                    mainLock.unlock();
-                    break;
+                synchronized (lock) {
+                    if(workerCounter.get() == 0 && currentState==State.SHUTDOWN) {
+                        currentState = State.TERMINATED;
+                        lock.notifyAll();
+                        break;
+                    }
                 }
-                mainLock.unlock();
             }
         }
     }
@@ -70,18 +65,17 @@ public class FixedThreadPool implements ExecutorService {
     @Override
     public List<Runnable> shutdownNow() {
         if(currentState == State.RUNNING || currentState == State.SHUTDOWN) {
-            mainLock.lock();
-            if(currentState == State.RUNNING || currentState== State.SHUTDOWN) {
-                currentState = State.SHUTDOWN_NOW;
-                stopAllWorkers();
-                List<Runnable> remainingTasks = new ArrayList<>(taskQueue.size());
-                taskQueue.drainTo(remainingTasks);
-                currentState = State.TERMINATED;
-                termination.signalAll();
-                mainLock.unlock();
-                return remainingTasks;
+            synchronized (lock) {
+                if (currentState == State.RUNNING || currentState == State.SHUTDOWN) {
+                    currentState = State.SHUTDOWN_NOW;
+                    stopAllWorkers();
+                    List<Runnable> remainingTasks = new ArrayList<>(taskQueue.size());
+                    taskQueue.drainTo(remainingTasks);
+                    currentState = State.TERMINATED;
+                    lock.notifyAll();
+                    return remainingTasks;
+                }
             }
-            mainLock.unlock();
         }
         return new ArrayList<>();
     }
@@ -91,13 +85,12 @@ public class FixedThreadPool implements ExecutorService {
         if(currentState == State.TERMINATED) {
             return true;
         }
-        mainLock.lock();
-        try {
-            termination.await(timeout, unit);
-        } catch (InterruptedException e) {
-            //
-        } finally {
-            mainLock.unlock();
+        synchronized (lock) {
+            try {
+                lock.wait(unit.toMillis(timeout));
+            } catch (InterruptedException e) {
+                //
+            }
         }
         return false;
     }
@@ -203,9 +196,9 @@ public class FixedThreadPool implements ExecutorService {
             task = getTask();
         }
         workerCounter.decrementAndGet();
-        mainLock.lock();
-        workerSet.remove(w);
-        mainLock.unlock();
+        synchronized (lock) {
+            workerSet.remove(w);
+        }
     }
 
     private Runnable getTask() {
@@ -219,12 +212,12 @@ public class FixedThreadPool implements ExecutorService {
     }
 
     private void stopAllWorkers() {
-        mainLock.lock();
-        for(Worker w: workerSet) {
-            w.interrupt();
+        synchronized (lock) {
+            for (Worker w : workerSet) {
+                w.interrupt();
+            }
+            workerSet.clear();
         }
-        workerSet.clear();
-        mainLock.unlock();
         workerCounter.getAndSet(0);
     }
 
