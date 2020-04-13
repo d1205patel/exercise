@@ -2,6 +2,7 @@ package grep;
 
 import java.io.*;
 import java.util.concurrent.*;
+import concurrent.FixedThreadPool;
 
 public class Grep {
 
@@ -34,7 +35,7 @@ public class Grep {
             if(!file.isDirectory()) {
                 findPattern(file.getPath());
             } else {
-                ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
+                ExecutorService executorService = new FixedThreadPool(NUM_THREADS);
                 processFile(file,executorService);
                 executorService.shutdown();
                 executorService.awaitTermination(1,TimeUnit.MINUTES);
@@ -43,11 +44,13 @@ public class Grep {
 
     private static void processFile(File file,ExecutorService executorService) {
         File[] files = file.listFiles();
-        for(File f:files) {
-            if (f.isDirectory()) {
-                processFile(f,executorService);
-            } else {
-                executorService.execute(() ->findPattern(f.getPath()));
+        if(files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    processFile(f, executorService);
+                } else {
+                    executorService.submit(() -> findPattern(f.getPath()));
+                }
             }
         }
     }
