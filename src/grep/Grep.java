@@ -1,7 +1,9 @@
 package grep;
 
 import java.io.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import concurrent.FixedThreadPool;
 
 public class Grep {
@@ -39,7 +41,7 @@ public class Grep {
                 ExecutorService executorService = new FixedThreadPool(NUM_THREADS);
                 processFile(file,executorService);
                 executorService.shutdown();
-                executorService.awaitTermination(5,TimeUnit.SECONDS);
+                executorService.awaitTermination(5, TimeUnit.SECONDS);
             }
             System.out.print("Time taken : " + (System.currentTimeMillis() - startTime));
     }
@@ -51,7 +53,7 @@ public class Grep {
                 if (f.isDirectory()) {
                     processFile(f, executorService);
                 } else {
-                    executorService.submit(() -> findPattern(f.getPath()));
+                    executorService.execute(() -> findPattern(f.getPath()));
                 }
             }
         }
