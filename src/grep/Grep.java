@@ -39,7 +39,7 @@ public class Grep {
                 ExecutorService executorService = new FixedThreadPool(NUM_THREADS);
                 processFile(file,executorService);
                 executorService.shutdown();
-                executorService.awaitTermination(1,TimeUnit.MINUTES);
+                executorService.awaitTermination(5,TimeUnit.SECONDS);
             }
             System.out.print("Time taken : " + (System.currentTimeMillis() - startTime));
     }

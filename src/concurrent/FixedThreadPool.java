@@ -6,15 +6,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class FixedThreadPool implements ExecutorService {
 
-    private long KEEP_ALIVE_TIME = 100L;
-    private TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.MILLISECONDS;
-
     private int poolSize;
 
     private AtomicInteger workerCounter = new AtomicInteger();
     private volatile HashSet<Worker> workerSet = new HashSet<>();
-    private BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
-    private final Object lock = new Object();
+    private volatile Queue<Runnable> taskQueue = new LinkedList<>();
+    private final Object mainLock = new Object();
+    private final Object queueLock = new Object();
     private State currentState = State.RUNNING;
 
     public FixedThreadPool(int size) {
@@ -31,7 +29,7 @@ public class FixedThreadPool implements ExecutorService {
         if(workerCounter.get() < poolSize) {
             if (workerCounter.incrementAndGet() <= poolSize) {
                 Worker w = new Worker(command);
-                synchronized (lock) {
+                synchronized (mainLock) {
                     workerSet.add(w);
                 }
                 w.t.start();
@@ -39,7 +37,9 @@ public class FixedThreadPool implements ExecutorService {
                 workerCounter.decrementAndGet();
             }
         } else {
-            taskQueue.add(command);
+            synchronized (queueLock) {
+                taskQueue.add(command);
+            }
         }
     }
 
@@ -53,14 +53,24 @@ public class FixedThreadPool implements ExecutorService {
     @Override
     public List<Runnable> shutdownNow() {
         if(currentState == State.RUNNING || currentState == State.SHUTDOWN) {
-            synchronized (lock) {
+            synchronized (mainLock) {
                 if (currentState == State.RUNNING || currentState == State.SHUTDOWN) {
                     currentState = State.SHUTDOWN_NOW;
-                    stopAllWorkers();
-                    List<Runnable> remainingTasks = new ArrayList<>(taskQueue.size());
-                    taskQueue.drainTo(remainingTasks);
+                    for (Worker w : workerSet) {
+                        w.interrupt();
+                    }
+                    workerSet.clear();
+                    workerCounter.getAndSet(0);
+                    List<Runnable> remainingTasks;
+                    synchronized (queueLock) {
+                        remainingTasks = new ArrayList<>(taskQueue.size());
+                        for (Runnable r : taskQueue) {
+                            remainingTasks.add(r);
+                        }
+                        taskQueue.clear();
+                    }
                     currentState = State.TERMINATED;
-                    lock.notifyAll();
+                    mainLock.notifyAll();
                     return remainingTasks;
                 }
             }
@@ -73,9 +83,12 @@ public class FixedThreadPool implements ExecutorService {
         if(currentState == State.TERMINATED) {
             return true;
         }
-        synchronized (lock) {
+        synchronized (mainLock) {
+            if(currentState == State.TERMINATED) {
+                return true;
+            }
             try {
-                lock.wait(unit.toMillis(timeout));
+                mainLock.wait(unit.toMillis(timeout));
             } catch (InterruptedException e) {
                 //
             }
@@ -176,42 +189,6 @@ public class FixedThreadPool implements ExecutorService {
 
     //<----------------------------------------- Private Helper Methods ------------------------------------>//
 
-    private void runWorker(Worker w) {
-        Runnable task = w.task;
-        w.task = null;
-        while(task!=null) {
-            task.run();
-            task = getTask();
-        }
-        workerCounter.decrementAndGet();
-        synchronized (lock) {
-            workerSet.remove(w);
-            if(workerSet.size()==0 && currentState == State.SHUTDOWN && taskQueue.size()==0) {
-                lock.notifyAll();
-            }
-        }
-    }
-
-    private Runnable getTask() {
-        Runnable task = null;
-        try {
-            task = currentState == State.SHUTDOWN ? taskQueue.poll() : taskQueue.poll(KEEP_ALIVE_TIME,KEEP_ALIVE_TIME_UNIT);
-        } catch (InterruptedException e) {
-//            System.out.println("Interrupted while fetching task from queue !");
-        }
-        return task;
-    }
-
-    private void stopAllWorkers() {
-        synchronized (lock) {
-            for (Worker w : workerSet) {
-                w.interrupt();
-            }
-            workerSet.clear();
-        }
-        workerCounter.getAndSet(0);
-    }
-
     private class Worker implements Runnable {
         Thread t;
         Runnable task;
@@ -223,7 +200,21 @@ public class FixedThreadPool implements ExecutorService {
 
         @Override
         public void run() {
-            runWorker(this);
+            while(currentState==State.RUNNING || task!=null) {
+                if(task!=null) {
+                    task.run();
+                }
+                synchronized (queueLock) {
+                    task = taskQueue.poll();
+                }
+            }
+            workerCounter.decrementAndGet();
+            synchronized (mainLock) {
+                workerSet.remove(this);
+                if(workerSet.size()==0 && currentState == State.SHUTDOWN && taskQueue.size()==0) {
+                    mainLock.notifyAll();
+                }
+            }
         }
 
         public void interrupt() {
