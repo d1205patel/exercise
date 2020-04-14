@@ -47,18 +47,6 @@ public class FixedThreadPool implements ExecutorService {
     public void shutdown() {
         if(currentState == State.RUNNING) {
             currentState = State.SHUTDOWN;
-            while(true) {
-                if(currentState != State.SHUTDOWN) {
-                    return;
-                }
-                synchronized (lock) {
-                    if(workerCounter.get() == 0 && currentState==State.SHUTDOWN) {
-                        currentState = State.TERMINATED;
-                        lock.notifyAll();
-                        break;
-                    }
-                }
-            }
         }
     }
 
@@ -198,6 +186,9 @@ public class FixedThreadPool implements ExecutorService {
         workerCounter.decrementAndGet();
         synchronized (lock) {
             workerSet.remove(w);
+            if(workerSet.size()==0 && currentState == State.SHUTDOWN && taskQueue.size()==0) {
+                lock.notifyAll();
+            }
         }
     }
 
@@ -220,7 +211,6 @@ public class FixedThreadPool implements ExecutorService {
         }
         workerCounter.getAndSet(0);
     }
-
 
     private class Worker implements Runnable {
         Thread t;
