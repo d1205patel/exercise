@@ -15,6 +15,7 @@ public class Grep {
     private static int m;   //m is pattern length
 
     public static void main(String[] args) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
         if(args.length!=2) {
             System.out.println("Usage: Grep pattern <file>");
             System.exit(0);
@@ -40,6 +41,7 @@ public class Grep {
                 executorService.shutdown();
                 executorService.awaitTermination(1,TimeUnit.MINUTES);
             }
+            System.out.print("Time taken : " + (System.currentTimeMillis() - startTime));
     }
 
     private static void processFile(File file,ExecutorService executorService) {
@@ -56,24 +58,18 @@ public class Grep {
     }
 
     private static void findPattern(String fileName) {
-        int j = 0 ,lines = 1 ,n ,lastFoundLine=-1;
+        int j = 0 ,n ,noOfOccurrence = 0;
         char[] text = new char[ARRAY_SIZE];
         try(BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName),BUFFER_SIZE)) {
             while ((n = bufferedReader.read(text, 0, ARRAY_SIZE)) != -1) {
                 int i = 0;
                 while (i < n) {
-                    if (text[i] == '\n') {
-                        lines++;
-                    }
                     if (pattern.charAt(j) == text[i]) {
                         j++;
                         i++;
                     }
                     if (j == m) {
-                        if(lastFoundLine!=lines) {
-                            System.out.print(fileName + " : " + lines + "\n");
-                            lastFoundLine = lines;
-                        }
+                        noOfOccurrence++;
                         j = lps[j-1];
                     } else if (i < n && pattern.charAt(j) != text[i]) {
                         if (j != 0)
@@ -83,6 +79,7 @@ public class Grep {
                     }
                 }
             }
+            System.out.println(fileName + " : " + noOfOccurrence);
         } catch (FileNotFoundException e) {
             System.out.println(fileName + "File Not found !");
         }
