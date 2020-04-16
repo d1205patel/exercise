@@ -6,17 +6,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class FixedThreadPool implements ExecutorService {
 
+    private static long DEFAULT_KEEP_ALIVE_TIME = 1000L;
+    private static TimeUnit DEFAULT_KEEP_ALIVE_TIME_UNIT = TimeUnit.MILLISECONDS;
+
     private int poolSize;
+    private long keepAliveTime;
+    private TimeUnit timeUnitForKeepAliveTime;
 
     private AtomicInteger workerCounter = new AtomicInteger();
     private volatile HashSet<Worker> workerSet = new HashSet<>();
-    private volatile Queue<Runnable> taskQueue = new LinkedList<>();
-    private final Object mainLock = new Object();
-    private final Object queueLock = new Object();
+    private BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
+    private Object lock = new Object();
     private State currentState = State.RUNNING;
 
-    public FixedThreadPool(int size) {
-        poolSize = size;
+    public FixedThreadPool(int poolSize) {
+        this(poolSize,DEFAULT_KEEP_ALIVE_TIME,DEFAULT_KEEP_ALIVE_TIME_UNIT);
+    }
+
+    public FixedThreadPool(int poolSize,long keepAliveTime,TimeUnit timeUnitForKeepAliveTime) {
+        this.poolSize = poolSize;
+        this.keepAliveTime = keepAliveTime;
+        this.timeUnitForKeepAliveTime = timeUnitForKeepAliveTime;
     }
 
     @Override
@@ -29,7 +39,7 @@ public class FixedThreadPool implements ExecutorService {
         if(workerCounter.get() < poolSize) {
             if (workerCounter.incrementAndGet() <= poolSize) {
                 Worker w = new Worker(command);
-                synchronized (mainLock) {
+                synchronized (lock) {
                     workerSet.add(w);
                 }
                 w.t.start();
@@ -37,9 +47,7 @@ public class FixedThreadPool implements ExecutorService {
                 workerCounter.decrementAndGet();
             }
         } else {
-            synchronized (queueLock) {
-                taskQueue.add(command);
-            }
+            taskQueue.add(command);
         }
     }
 
@@ -53,24 +61,14 @@ public class FixedThreadPool implements ExecutorService {
     @Override
     public List<Runnable> shutdownNow() {
         if(currentState == State.RUNNING || currentState == State.SHUTDOWN) {
-            synchronized (mainLock) {
+            synchronized (lock) {
                 if (currentState == State.RUNNING || currentState == State.SHUTDOWN) {
                     currentState = State.SHUTDOWN_NOW;
-                    for (Worker w : workerSet) {
-                        w.interrupt();
-                    }
-                    workerSet.clear();
-                    workerCounter.getAndSet(0);
-                    List<Runnable> remainingTasks;
-                    synchronized (queueLock) {
-                        remainingTasks = new ArrayList<>(taskQueue.size());
-                        for (Runnable r : taskQueue) {
-                            remainingTasks.add(r);
-                        }
-                        taskQueue.clear();
-                    }
+                    stopAllWorkers();
+                    List<Runnable> remainingTasks = new ArrayList<>(taskQueue.size());
+                    taskQueue.drainTo(remainingTasks);
                     currentState = State.TERMINATED;
-                    mainLock.notifyAll();
+                    lock.notifyAll();
                     return remainingTasks;
                 }
             }
@@ -83,12 +81,9 @@ public class FixedThreadPool implements ExecutorService {
         if(currentState == State.TERMINATED) {
             return true;
         }
-        synchronized (mainLock) {
-            if(currentState == State.TERMINATED) {
-                return true;
-            }
+        synchronized (lock) {
             try {
-                mainLock.wait(unit.toMillis(timeout));
+                lock.wait(unit.toMillis(timeout));
             } catch (InterruptedException e) {
                 //
             }
@@ -189,6 +184,42 @@ public class FixedThreadPool implements ExecutorService {
 
     //<----------------------------------------- Private Helper Methods ------------------------------------>//
 
+    private void runWorker(Worker w) {
+        Runnable task = w.task;
+        w.task = null;
+        while(task!=null) {
+            task.run();
+            task = getTask();
+        }
+        workerCounter.decrementAndGet();
+        synchronized (lock) {
+            workerSet.remove(w);
+            if(workerSet.size()==0 && currentState == State.SHUTDOWN && taskQueue.size()==0) {
+                lock.notifyAll();
+            }
+        }
+    }
+
+    private Runnable getTask() {
+        Runnable task = null;
+        try {
+            task = currentState == State.SHUTDOWN ? taskQueue.poll() : taskQueue.poll(keepAliveTime,timeUnitForKeepAliveTime);
+        } catch (InterruptedException e) {
+//            System.out.println("Interrupted while fetching task from queue !");
+        }
+        return task;
+    }
+
+    private void stopAllWorkers() {
+        synchronized (lock) {
+            for (Worker w : workerSet) {
+                w.interrupt();
+            }
+            workerSet.clear();
+        }
+        workerCounter.getAndSet(0);
+    }
+
     private class Worker implements Runnable {
         Thread t;
         Runnable task;
@@ -200,21 +231,7 @@ public class FixedThreadPool implements ExecutorService {
 
         @Override
         public void run() {
-            while(currentState==State.RUNNING || task!=null) {
-                if(task!=null) {
-                    task.run();
-                }
-                synchronized (queueLock) {
-                    task = taskQueue.poll();
-                }
-            }
-            workerCounter.decrementAndGet();
-            synchronized (mainLock) {
-                workerSet.remove(this);
-                if(workerSet.size()==0 && currentState == State.SHUTDOWN && taskQueue.size()==0) {
-                    mainLock.notifyAll();
-                }
-            }
+            runWorker(this);
         }
 
         public void interrupt() {
