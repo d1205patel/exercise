@@ -1,6 +1,8 @@
 package grep;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -10,7 +12,7 @@ public class Grep {
 
     private static final int BUFFER_SIZE = 8192;
     private static final int ARRAY_SIZE = 8192;
-    private static final int NUM_THREADS = 6;
+    private static final int NUM_THREADS = 16;
 
     private static String pattern;
     private static int[] lps;
@@ -41,7 +43,7 @@ public class Grep {
                 ExecutorService executorService = new FixedThreadPool(NUM_THREADS);
                 processFile(file,executorService);
                 executorService.shutdown();
-                executorService.awaitTermination(5, TimeUnit.SECONDS);
+                executorService.awaitTermination(60, TimeUnit.MINUTES);
             }
             System.out.print("Time taken : " + (System.currentTimeMillis() - startTime));
     }
@@ -60,30 +62,40 @@ public class Grep {
     }
 
     private static void findPattern(String fileName) {
-        int j = 0 ,n ,noOfOccurrence = 0;
-        char[] text = new char[ARRAY_SIZE];
-        try(BufferedReader bufferedReader = new BufferedReader(new FileReader(fileName),BUFFER_SIZE)) {
-            while ((n = bufferedReader.read(text, 0, ARRAY_SIZE)) != -1) {
-                int i = 0;
+        int j = 0 ,n ,noOfOccurrence = 0,i;
+        char text = 0;
+        int lastI;
+        try {
+            RandomAccessFile aFile = new RandomAccessFile(fileName, "r");
+            FileChannel inChannel = aFile.getChannel();
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            while (inChannel.read(buffer) > 0) {
+                buffer.flip();
+                i = 0;
+                lastI = -1;
+                n = buffer.limit();
                 while (i < n) {
-                    if (pattern.charAt(j) == text[i]) {
+                    text = lastI==i ? text :(char)buffer.get();
+                    lastI = i;
+                    if (pattern.charAt(j) == text) {
                         j++;
                         i++;
                     }
                     if (j == m) {
                         noOfOccurrence++;
-                        j = lps[j-1];
-                    } else if (i < n && pattern.charAt(j) != text[i]) {
+                        j = lps[j - 1];
+                    } else if (i < n && pattern.charAt(j) != text) {
                         if (j != 0)
                             j = lps[j - 1];
                         else
                             i++;
                     }
                 }
+                buffer.clear();
             }
-            System.out.println(fileName + " : " + noOfOccurrence);
-        } catch (FileNotFoundException e) {
-            System.out.println(fileName + "File Not found !");
+            inChannel.close();
+            aFile.close();
+            System.out.println(fileName + " : " +noOfOccurrence);
         }
         catch (IOException e) {
             System.out.println("Error occurred while processing file" + fileName);
