@@ -62,43 +62,33 @@ public class Grep {
     }
 
     private static void findPattern(String fileName) {
-        int j = 0 ,n ,noOfOccurrence = 0,i;
-        char text = 0;
-        int lastI;
-        try {
-            RandomAccessFile aFile = new RandomAccessFile(fileName, "r");
-            FileChannel inChannel = aFile.getChannel();
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-            while (inChannel.read(buffer) > 0) {
-                buffer.flip();
+        int j = 0 ,n ,noOfOccurrence = 0 , i;
+        byte[] text = new byte[ARRAY_SIZE];
+
+        try(FileInputStream fis = new FileInputStream(fileName)) {
+            while((n=fis.read(text,0,ARRAY_SIZE))!=-1) {
                 i = 0;
-                lastI = -1;
-                n = buffer.limit();
                 while (i < n) {
-                    text = lastI==i ? text :(char)buffer.get();
-                    lastI = i;
-                    if (pattern.charAt(j) == text) {
+                    if (pattern.charAt(j) == (char)text[i]) {
                         j++;
                         i++;
                     }
                     if (j == m) {
                         noOfOccurrence++;
-                        j = lps[j - 1];
-                    } else if (i < n && pattern.charAt(j) != text) {
+                        j = lps[j-1];
+                    } else if (i < n && pattern.charAt(j) != (char)text[i]) {
                         if (j != 0)
                             j = lps[j - 1];
                         else
                             i++;
                     }
                 }
-                buffer.clear();
             }
-            inChannel.close();
-            aFile.close();
-            System.out.println(fileName + " : " +noOfOccurrence);
-        }
-        catch (IOException e) {
-            System.out.println("Error occurred while processing file" + fileName);
+            System.out.println(fileName + " : " + noOfOccurrence);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
