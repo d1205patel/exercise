@@ -345,6 +345,8 @@ public class MyConcurrentHashMap<K extends Integer,V extends Integer> implements
                             foundNode.next = null;
                             bucketLock.unlock();
                             return foundNode;
+                        } else {
+                            break;
                         }
                     } else {
                         break;
