@@ -228,7 +228,6 @@ public class MyConcurrentHashMap<K extends Integer,V extends Integer> implements
                     Bucket<K,V> bucket = getBucket(table,index);
                     bucket.node = new Node(hash,key,value,null);
                     setTabAt(table,index,bucket);
-//                    System.out.println("Placed at -> " + index + " : " + "K" + value + " , n =" + n + " resizingIndex : " + resizingIndex);
                     break;
                 }
             } else if(n*2==nextTableLength && resizingIndex>index && getFirstNode(nextTable,hash &(nextTableLength-1))==null) {
@@ -242,20 +241,15 @@ public class MyConcurrentHashMap<K extends Integer,V extends Integer> implements
                     Bucket<K,V> bucket = getBucket(nextTable,nextIndex);
                     bucket.node = new Node(hash,key,value,null);;
                     setTabAt(nextTable,nextIndex,bucket);
-//                    System.out.println("Placed at new Table-> " + nextIndex + " : " + "K" + value + " resizingIndex : " + resizingIndex);
                     break;
                 }
             } else {
                 Node<K, V> foundNode;
-                int printIndex = index;
-                String prefix = "Placed at -> ";
                 boolean addInNextTable = false;
                 if(nextTableLength == n*2 && resizingIndex>index) {
                     int nextTableIndex = hash&(nextTableLength-1);
                     prevNode = getFirstNode(nextTable,nextTableIndex);
                     bucketLock = getLock(nextTable,nextTableIndex);
-                    printIndex = nextTableIndex;
-                    prefix = "Placed at new Table but not first";
                     if(prevNode==null || bucketLock==null) {
                         continue;
                     }
@@ -278,14 +272,12 @@ public class MyConcurrentHashMap<K extends Integer,V extends Integer> implements
                 }
                 if((n==nextTableLength && resizingIndex<=index) || (addInNextTable && nextTableLength == n*2 && resizingIndex>index)) {
                     if (foundNode != null) {
-//                        System.out.println(prefix + printIndex + " : " + value);
                         V oldValue = foundNode.value;
                         foundNode.value = value;
                         bucketLock.unlock();
                         return oldValue;
                     } else {
                         prevNode.next = new Node<>(hash, key, value, null);
-//                        System.out.println(prefix + printIndex + " : " + "K" +value + " resizingIndex : " + resizingIndex);
                     }
                     break;
                 }
@@ -427,8 +419,6 @@ public class MyConcurrentHashMap<K extends Integer,V extends Integer> implements
             float ft = (float) nextTableLength * loadFactor;
             threshold = ft >= (float) Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) ft;
 
-//            System.out.println("Resizing table to length : " + nextTableLength);
-
             nextTable = (Bucket<K, V>[]) new Bucket[nextTableLength];
             for(int i=0;i<nextTableLength;i++) {
                 setTabAt(nextTable,i,new Bucket<>());
@@ -446,14 +436,12 @@ public class MyConcurrentHashMap<K extends Integer,V extends Integer> implements
                     Node<K, V> highHead = null, highTail = null, lowHead = null, lowTail = null;
                     while (node != null) {
                         if ((node.hash & oldCap) == 0) {
-//                            System.out.println("Not Moving " + "K" + node.value + "  ," + (node.hash & (oldCap-1)) + " to " + (node.hash & (nextTableLength-1)) + "oldcap" + oldCap + " resizingIndex : " + resizingIndex);
                             if (lowHead == null) {
                                 lowHead = lowTail = node;
                             } else {
                                 lowTail = lowTail.next = node;
                             }
                         } else {
-//                            System.out.println("Moving : " + "K" + node.value + "  ,"+ (node.hash & (oldCap-1)) + " to " + (node.hash & (nextTableLength-1))+ "oldcap" + oldCap  +" resizingIndex : " + resizingIndex);
                             if (highHead == null) {
                                 highHead = highTail = node;
                             } else {
