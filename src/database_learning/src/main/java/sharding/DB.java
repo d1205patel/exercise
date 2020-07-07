@@ -66,14 +66,13 @@ public class DB {
         }
     }
 
-    public void searchId(Long id) {
+    public void searchDocById(Long id) {
         int shardNumber = (int) (id%numberOfShards);
         long lineNumber = idIndexes[shardNumber].get(id);
         if(lineNumber==-1) {
-            System.out.println("Not found id = " + id);
-        } else {
-            System.out.println("Id=" + id + " is found at line number " + lineNumber);
+            System.out.println("{}");
         }
+        System.out.println(shards[shardNumber].getJSONObjectAtLine(lineNumber));
     }
 
     public void exit() {

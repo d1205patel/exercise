@@ -14,7 +14,7 @@ public class IdIndex {
         map.put(id,lineNumber);
     }
 
-    public long get(Long id) {
+    public long get(long id) {
         Object o = map.get(id);
         return o==null? -1:(long)o;
     }
