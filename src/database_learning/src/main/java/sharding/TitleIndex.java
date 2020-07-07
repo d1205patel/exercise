@@ -5,10 +5,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-public class Index {
+public class TitleIndex {
     private Map<String, LinkedList<Long>> map;
 
-    Index() {
+    TitleIndex() {
         map = new HashMap<>();
     }
 
