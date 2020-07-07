@@ -8,7 +8,6 @@ import org.json.simple.parser.ParseException;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.List;
 
 public class DB {
     private int numberOfShards;
@@ -57,21 +56,16 @@ public class DB {
 
     public void searchTitle(String s) {
         for(int i=0;i<numberOfShards;i++) {
-            List<Long> list = titleTitleIndices[i].searchString(s);
-            if(list!=null) {
-                for(Long id:list) {
-                    System.out.println(id);
-                }
+            long id = titleTitleIndices[i].getId(s);
+            if(id != -1) {
+                searchDocById((long)id);
             }
         }
     }
 
-    public void searchDocById(Long id) {
+    public void searchDocById(long id) {
         int shardNumber = (int) (id%numberOfShards);
         long lineNumber = idIndexes[shardNumber].get(id);
-        if(lineNumber==-1) {
-            System.out.println("{}");
-        }
         System.out.println(shards[shardNumber].getJSONObjectAtLine(lineNumber));
     }
 
