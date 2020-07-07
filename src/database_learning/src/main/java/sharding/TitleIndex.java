@@ -1,30 +1,21 @@
 package sharding;
 
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 public class TitleIndex {
-    private Map<String, LinkedList<Long>> map;
+    private Map<String, Long> map;
 
     TitleIndex() {
         map = new HashMap<>();
     }
 
     public void addString(String s, long id) {
-        LinkedList list = map.get(s);
-        if(list==null) {
-            list = new LinkedList();
-        }
-        if(list.size()!=0 && id == (long)list.getLast()) {
-            return;
-        }
-        list.add(id);
-        map.put(s,list);
+        map.put(s,id);
     }
 
-    public List<Long> searchString(String s) {
-        return map.get(s);
+    public long getId(String s) {
+        Object o = map.get(s);
+        return o==null ? -1l:(long)o;
     }
 }
